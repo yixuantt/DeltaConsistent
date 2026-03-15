@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FOMC Hawkishness Attribution · 2023-12-13</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --surface: #ffffff;
+    --surface2: #f0f1f4;
+    --border: #dde0e8;
+    --hawk: #c0392b;
+    --hawk-soft: rgba(192, 57, 43, 0.10);
+    --hawk-mid: rgba(192, 57, 43, 0.25);
+    --dove: #1a6fa8;
+    --dove-soft: rgba(26, 111, 168, 0.10);
+    --dove-mid: rgba(26, 111, 168, 0.25);
+    --neutral: #7a8494;
+    --text: #1e2330;
+    --text-dim: #8892a4;
+    --accent: #b07d10;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+    padding: 32px 24px;
+  }
+
+  .header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .header-left h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #5a6278;
+    margin-bottom: 8px;
+  }
+
+  .header-left h2 {
+    font-size: 22px;
+    font-weight: 300;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 20px;
+    align-items: start;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .panel-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #5a6278;
+  }
+
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .text-content {
+    padding: 24px;
+    line-height: 1.75;
+    font-size: 14px;
+    color: #1e2330;
+  }
+
+  .span-hawk {
+    background: var(--hawk-soft);
+    border-bottom: 2px solid var(--hawk);
+    color: #7a1a10;
+    border-radius: 2px;
+    padding: 1px 2px;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-weight: 500;
+  }
+
+  .span-dove {
+    background: var(--dove-soft);
+    border-bottom: 2px solid var(--dove);
+    color: #0d3d6b;
+    border-radius: 2px;
+    padding: 1px 2px;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-weight: 500;
+  }
+
+  .span-hawk:hover, .span-hawk.active { background: var(--hawk-mid); }
+  .span-dove:hover, .span-dove.active { background: var(--dove-mid); }
+
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .chart-section {
+    padding: 16px 20px;
+  }
+
+  .chart-section + .chart-section {
+    border-top: 1px solid var(--border);
+  }
+
+  .chart-section-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .chart-section-title.hawk { color: var(--hawk); }
+  .chart-section-title.dove { color: var(--dove); }
+
+  .bar-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+  }
+
+  .bar-rank {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: #5a6278;
+    width: 14px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .bar-track {
+    flex: 1;
+    height: 20px;
+    background: #eaecf0;
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: opacity 0.15s;
+    display: flex;
+    align-items: center;
+    padding-left: 8px;
+  }
+
+  .bar-fill.hawk { background: linear-gradient(90deg, rgba(192,57,43,0.30), rgba(192,57,43,0.05)); }
+  .bar-fill.dove { background: linear-gradient(90deg, rgba(26,111,168,0.30), rgba(26,111,168,0.05)); }
+
+  .bar-row:hover .bar-fill { opacity: 0.75; }
+  .bar-row.active .bar-fill.hawk { background: linear-gradient(90deg, rgba(192,57,43,0.55), rgba(192,57,43,0.12)); }
+  .bar-row.active .bar-fill.dove { background: linear-gradient(90deg, rgba(26,111,168,0.55), rgba(26,111,168,0.12)); }
+
+  .bar-text {
+    font-size: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 130px;
+    color: var(--text);
+  }
+
+  .bar-delta {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    width: 52px;
+    text-align: right;
+    flex-shrink: 0;
+    font-weight: 600;
+  }
+
+  .bar-delta.hawk { color: var(--hawk); }
+  .bar-delta.dove { color: var(--dove); }
+
+  .tooltip {
+    position: fixed;
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 12px;
+    max-width: 280px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 100;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+  }
+
+  .tooltip.visible { opacity: 1; }
+
+  .tooltip-span {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text);
+    margin-bottom: 8px;
+    line-height: 1.5;
+  }
+
+  .tooltip-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 4px;
+  }
+
+  .tooltip-key {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: #5a6278;
+    letter-spacing: 0.05em;
+  }
+
+  .tooltip-val {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .tooltip-val.hawk { color: var(--hawk); }
+  .tooltip-val.dove { color: var(--dove); }
+
+  .legend {
+    display: flex;
+    gap: 20px;
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+    background: #eaecf0;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: #5a6278;
+  }
+
+  .legend-line {
+    width: 16px;
+    height: 2px;
+    border-radius: 1px;
+  }
+
+  .instructions {
+    font-size: 11px;
+    color: #5a6278;
+    font-family: 'IBM Plex Mono', monospace;
+    padding: 10px 20px;
+    border-top: 1px solid var(--border);
+    background: #eaecf0;
+  }
+
+  .span-info {
+    padding: 14px 20px;
+    border-top: 1px solid var(--border);
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+  }
+
+  .span-info-empty {
+    font-size: 11px;
+    color: #8892a4;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .span-info-content { display: none; width: 100%; }
+  .span-info-content.visible { display: block; }
+
+  .span-info-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .span-info-quote {
+    font-size: 12px;
+    color: #2a3040;
+    line-height: 1.5;
+    font-style: italic;
+    margin-bottom: 8px;
+  }
+
+  .span-info-stats {
+    display: flex;
+    gap: 16px;
+  }
+
+  .stat {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+  }
+
+  .stat-k { color: #5a6278; }
+  .stat-v { font-weight: 600; }
+  .stat-v.hawk { color: var(--hawk); }
+  .stat-v.dove { color: var(--dove); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>FOMC Statement · 2023-12-13</h1>
+    <h2>Span-Level Attribution (Hawkish)</h2>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="panel">
+    <div class="panel-header">
+      <span class="dot" style="background:#aab0be"></span>
+      <span class="panel-title">Full Statement Text · Annotated</span>
+    </div>
+    <div class="text-content" id="annotated-text"></div>
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-line" style="background:var(--hawk)"></div>
+        Hawkish span
+      </div>
+      <div class="legend-item">
+        <div class="legend-line" style="background:var(--dove)"></div>
+        Dovish span
+      </div>
+    </div>
+    <div class="instructions">Hover or click any highlighted span for details · click bar chart rows to locate in text</div>
+  </div>
+
+  <div class="sidebar">
+    <div class="panel chart-panel">
+      <div class="panel-header">
+        <span class="dot" style="background:var(--accent)"></span>
+        <span class="panel-title">Attribution Ranking</span>
+      </div>
+
+      <div class="chart-section" id="hawk-chart"></div>
+      <div class="chart-section" id="dove-chart"></div>
+
+      <div class="span-info">
+        <div class="span-info-empty" id="info-empty">Select a span</div>
+        <div class="span-info-content" id="info-content">
+          <div class="span-info-label" id="info-label"></div>
+          <div class="span-info-quote" id="info-quote"></div>
+          <div class="span-info-stats">
+            <div class="stat"><span class="stat-k">Delta score </span><span class="stat-v" id="info-delta"></span></div>
+            <div class="stat"><span class="stat-k">score w/o </span><span class="stat-v" id="info-score-wo"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip">
+  <div class="tooltip-span" id="tt-span"></div>
+  <div class="tooltip-row">
+    <span class="tooltip-key">Delta score</span>
+    <span class="tooltip-val" id="tt-delta"></span>
+  </div>
+  <div class="tooltip-row">
+    <span class="tooltip-key">score w/o span</span>
+    <span class="tooltip-val" id="tt-score-wo"></span>
+  </div>
+  <div class="tooltip-row">
+    <span class="tooltip-key">word range</span>
+    <span class="tooltip-val" id="tt-range" style="color:#5a6278"></span>
+  </div>
+</div>
+
+<script>
+// From span_attribution2.txt (2023-12-13)
+const TEXT = `Recent indicators suggest that growth of economic activity has slowed from its strong pace in the third quarter. Job gains have moderated since earlier in the year but remain strong, and the unemployment rate has remained low. Inflation has eased over the past year but remains elevated.
+
+The U.S. banking system is sound and resilient. Tighter financial and credit conditions for households and businesses are likely to weigh on economic activity, hiring, and inflation. The extent of these effects remains uncertain. The Committee remains highly attentive to inflation risks.
+
+The Committee seeks to achieve maximum employment and inflation at the rate of 2 percent over the longer run. In support of these goals, the Committee decided to maintain the target range for the federal funds rate at 5-1/4 to 5-1/2 percent. The Committee will continue to assess additional information and its implications for monetary policy. In determining the extent of any additional policy firming that may be appropriate to return inflation to 2 percent over time, the Committee will take into account the cumulative tightening of monetary policy, the lags with which monetary policy affects economic activity and inflation, and economic and financial developments. In addition, the Committee will continue reducing its holdings of Treasury securities and agency debt and agency mortgage-backed securities, as described in its previously announced plans. The Committee is strongly committed to returning inflation to its 2 percent objective.
+
+In assessing the appropriate stance of monetary policy, the Committee will continue to monitor the implications of incoming information for the economic outlook. The Committee would be prepared to adjust the stance of monetary policy as appropriate if risks emerge that could impede the attainment of the Committee's goals. The Committee's assessments will take into account a wide range of information, including readings on labor market conditions, inflation pressures and inflation expectations, and financial and international developments.`;
+
+function findSpanPositions(text, quote) {
+  let idx = text.indexOf(quote);
+  if (idx >= 0) return [idx, idx + quote.length];
+  const normalized = text.replace(/\n+/g, ' ');
+  idx = normalized.indexOf(quote);
+  if (idx < 0) return null;
+  let n = 0, start = -1, end = -1;
+  for (let t = 0; t < text.length; t++) {
+    if (text[t] !== '\n') {
+      if (n === idx) start = t;
+      if (n === idx + quote.length) { end = t; break; }
+      n++;
+    }
+  }
+  if (end < 0) end = text.length;
+  return start >= 0 ? [start, end] : null;
+}
+
+// Data from span_attribution2.txt: 3 hawkish, 0 dovish (sentence-level)
+const HAWK_SPANS_RAW = [
+  { rank: 1, delta: 0.0347, score_wo: 0.8170, quote: 'addition, the Committee will continue reducing its holdings of Treasury securities and agency debt and agency mortgage-backed' },
+  { rank: 2, delta: 0.0196, score_wo: 0.8322, quote: 'policy firming that may be appropriate to return inflation to 2 percent over time, the Committee will take into account' },
+  { rank: 3, delta: 0.0059, score_wo: 0.8458, quote: 'tightening of monetary policy, the lags with which monetary policy affects economic activity and inflation, and economic' },
+];
+
+const DOVE_SPANS_RAW = [];
+
+const HAWK_SPANS = HAWK_SPANS_RAW.map((s, i) => {
+  const pos = findSpanPositions(TEXT, s.quote);
+  return { ...s, id: `hawk-${i}`, type: 'hawk', start: pos?.[0], end: pos?.[1] };
+}).filter(s => s.start !== undefined);
+
+const DOVE_SPANS = DOVE_SPANS_RAW.map((s, i) => {
+  const pos = findSpanPositions(TEXT, s.quote);
+  return { ...s, id: `dove-${i}`, type: 'dove', start: pos?.[0], end: pos?.[1] };
+}).filter(s => s.start !== undefined);
+
+const ALL_SPANS = [...HAWK_SPANS, ...DOVE_SPANS].sort((a, b) => a.start - b.start);
+
+function buildAnnotatedText() {
+  const container = document.getElementById('annotated-text');
+  let html = '';
+  let cursor = 0;
+
+  for (const span of ALL_SPANS) {
+    if (span.start < cursor) continue;
+    const before = TEXT.slice(cursor, span.start);
+    html += escapeHtml(before).replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>');
+    const cls = span.type === 'hawk' ? 'span-hawk' : 'span-dove';
+    html += `<span class="${cls}" data-id="${span.id}" data-type="${span.type}">${escapeHtml(span.quote)}</span>`;
+    cursor = span.end;
+  }
+  html += escapeHtml(TEXT.slice(cursor)).replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>');
+
+  container.innerHTML = `<p>${html}</p>`;
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function buildChart(spans, containerId, type) {
+  const container = document.getElementById(containerId);
+  if (spans.length === 0) {
+    container.innerHTML = '<div class="chart-section-title ' + type + '">' + (type === 'hawk' ? 'Hawkish' : 'Dovish') + ' Spans</div><div style="font-size:11px;color:#8892a4;">None</div>';
+    return;
+  }
+  const maxDelta = Math.max(...spans.map(s => Math.abs(s.delta)));
+  const color = type === 'hawk' ? 'hawk' : 'dove';
+  const label = type === 'hawk' ? 'Hawkish Spans' : 'Dovish Spans';
+
+  let html = '<div class="chart-section-title ' + color + '">' + label + '</div>';
+  for (const span of spans) {
+    const pct = (Math.abs(span.delta) / maxDelta * 100).toFixed(1);
+    const shortText = span.quote.length > 28 ? span.quote.slice(0, 28) + '…' : span.quote;
+    const deltaStr = span.delta > 0 ? '+' + span.delta.toFixed(4) : span.delta.toFixed(4);
+    html += '<div class="bar-row" data-id="' + span.id + '" data-type="' + type + '">' +
+      '<span class="bar-rank">' + span.rank + '</span>' +
+      '<div class="bar-track"><div class="bar-fill ' + color + '" style="width:' + pct + '%">' +
+      '<span class="bar-text">' + escapeHtml(shortText) + '</span></div></div>' +
+      '<span class="bar-delta ' + color + '">' + deltaStr + '</span></div>';
+  }
+  container.innerHTML = html;
+}
+
+const tooltip = document.getElementById('tooltip');
+let activeId = null;
+
+function showTooltip(span, e) {
+  document.getElementById('tt-span').textContent = '"' + span.quote + '"';
+  const deltaStr = span.delta > 0 ? '+' + span.delta.toFixed(4) : span.delta.toFixed(4);
+  const el = document.getElementById('tt-delta');
+  el.textContent = deltaStr;
+  el.className = 'tooltip-val ' + span.type;
+  document.getElementById('tt-score-wo').textContent = span.score_wo.toFixed(4);
+  document.getElementById('tt-range').textContent = span.start + '–' + span.end;
+  tooltip.style.left = Math.min(e.clientX + 14, window.innerWidth - 300) + 'px';
+  tooltip.style.top = Math.max(10, e.clientY - 10) + 'px';
+  tooltip.classList.add('visible');
+}
+
+function hideTooltip() {
+  tooltip.classList.remove('visible');
+}
+
+function getSpanById(id) {
+  return HAWK_SPANS.concat(DOVE_SPANS).find(function(s) { return s.id === id; });
+}
+
+function setActive(id) {
+  document.querySelectorAll('.span-hawk, .span-dove, .bar-row').forEach(function(el) { el.classList.remove('active'); });
+  if (!id || id === activeId) {
+    activeId = null;
+    document.getElementById('info-empty').style.display = 'block';
+    document.getElementById('info-content').classList.remove('visible');
+    return;
+  }
+  activeId = id;
+  document.querySelectorAll('[data-id="' + id + '"]').forEach(function(el) { el.classList.add('active'); });
+
+  const span = getSpanById(id);
+  if (span) {
+    document.getElementById('info-empty').style.display = 'none';
+    document.getElementById('info-content').classList.add('visible');
+    document.getElementById('info-label').textContent = span.type === 'hawk' ? 'Hawkish Span' : 'Dovish Span';
+    document.getElementById('info-label').style.color = span.type === 'hawk' ? 'var(--hawk)' : 'var(--dove)';
+    document.getElementById('info-quote').textContent = '"' + span.quote + '"';
+    const deltaStr = span.delta > 0 ? '+' + span.delta.toFixed(4) : span.delta.toFixed(4);
+    document.getElementById('info-delta').textContent = deltaStr;
+    document.getElementById('info-delta').className = 'stat-v ' + span.type;
+    document.getElementById('info-score-wo').textContent = span.score_wo.toFixed(4);
+  }
+
+  const textEl = document.querySelector('[data-id="' + id + '"].span-hawk, [data-id="' + id + '"].span-dove');
+  if (textEl) textEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+document.addEventListener('mousemove', function(e) {
+  const target = e.target.closest('[data-id]');
+  if (target) {
+    const span = getSpanById(target.dataset.id);
+    if (span) { showTooltip(span, e); return; }
+  }
+  hideTooltip();
+});
+
+document.addEventListener('click', function(e) {
+  const target = e.target.closest('[data-id]');
+  if (target) setActive(target.dataset.id === activeId ? null : target.dataset.id);
+});
+
+buildAnnotatedText();
+buildChart(HAWK_SPANS, 'hawk-chart', 'hawk');
+buildChart(DOVE_SPANS, 'dove-chart', 'dove');
+</script>
+</body>
+</html>

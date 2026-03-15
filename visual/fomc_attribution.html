@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FOMC Hawkishness Attribution</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --surface: #ffffff;
+    --surface2: #f0f1f4;
+    --border: #dde0e8;
+    --hawk: #c0392b;
+    --hawk-soft: rgba(192, 57, 43, 0.10);
+    --hawk-mid: rgba(192, 57, 43, 0.25);
+    --dove: #1a6fa8;
+    --dove-soft: rgba(26, 111, 168, 0.10);
+    --dove-mid: rgba(26, 111, 168, 0.25);
+    --neutral: #7a8494;
+    --text: #1e2330;
+    --text-dim: #8892a4;
+    --accent: #b07d10;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+    padding: 32px 24px;
+  }
+
+  .header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .header-left h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #5a6278;
+    margin-bottom: 8px;
+  }
+
+  .header-left h2 {
+    font-size: 22px;
+    font-weight: 300;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  .score-badge {
+    text-align: right;
+  }
+
+  .score-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: #5a6278;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .score-value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 36px;
+    font-weight: 600;
+    color: var(--dove);
+    line-height: 1;
+  }
+
+  .score-tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--dove);
+    background: var(--dove-soft);
+    border: 1px solid rgba(58, 154, 232, 0.3);
+    padding: 3px 8px;
+    border-radius: 3px;
+    margin-top: 6px;
+    display: inline-block;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 20px;
+    align-items: start;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .panel-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #5a6278;
+  }
+
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* TEXT PANEL */
+  .text-content {
+    padding: 24px;
+    line-height: 1.75;
+    font-size: 14px;
+    color: #1e2330;
+  }
+
+  .span-hawk {
+    background: var(--hawk-soft);
+    border-bottom: 2px solid var(--hawk);
+    color: #7a1a10;
+    border-radius: 2px;
+    padding: 1px 2px;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-weight: 500;
+  }
+
+  .span-dove {
+    background: var(--dove-soft);
+    border-bottom: 2px solid var(--dove);
+    color: #0d3d6b;
+    border-radius: 2px;
+    padding: 1px 2px;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-weight: 500;
+  }
+
+  .span-hawk:hover, .span-hawk.active { background: var(--hawk-mid); }
+  .span-dove:hover, .span-dove.active { background: var(--dove-mid); }
+
+  /* SIDEBAR */
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* BAR CHART */
+  .chart-section {
+    padding: 16px 20px;
+  }
+
+  .chart-section + .chart-section {
+    border-top: 1px solid var(--border);
+  }
+
+  .chart-section-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .chart-section-title.hawk { color: var(--hawk); }
+  .chart-section-title.dove { color: var(--dove); }
+
+  .bar-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+  }
+
+  .bar-rank {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: #5a6278;
+    width: 14px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .bar-track {
+    flex: 1;
+    height: 20px;
+    background: #eaecf0;
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: opacity 0.15s;
+    display: flex;
+    align-items: center;
+    padding-left: 8px;
+  }
+
+  .bar-fill.hawk { background: linear-gradient(90deg, rgba(192,57,43,0.30), rgba(192,57,43,0.05)); }
+  .bar-fill.dove { background: linear-gradient(90deg, rgba(26,111,168,0.30), rgba(26,111,168,0.05)); }
+
+  .bar-row:hover .bar-fill { opacity: 0.75; }
+  .bar-row.active .bar-fill.hawk { background: linear-gradient(90deg, rgba(192,57,43,0.55), rgba(192,57,43,0.12)); }
+  .bar-row.active .bar-fill.dove { background: linear-gradient(90deg, rgba(26,111,168,0.55), rgba(26,111,168,0.12)); }
+
+  .bar-text {
+    font-size: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 130px;
+    color: var(--text);
+  }
+
+  .bar-delta {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    width: 52px;
+    text-align: right;
+    flex-shrink: 0;
+    font-weight: 600;
+  }
+
+  .bar-delta.hawk { color: var(--hawk); }
+  .bar-delta.dove { color: var(--dove); }
+
+  /* TOOLTIP */
+  .tooltip {
+    position: fixed;
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 12px;
+    max-width: 280px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 100;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+  }
+
+  .tooltip.visible { opacity: 1; }
+
+  .tooltip-span {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text);
+    margin-bottom: 8px;
+    line-height: 1.5;
+  }
+
+  .tooltip-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 4px;
+  }
+
+  .tooltip-key {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: #5a6278;
+    letter-spacing: 0.05em;
+  }
+
+  .tooltip-val {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .tooltip-val.hawk { color: var(--hawk); }
+  .tooltip-val.dove { color: var(--dove); }
+
+  /* LEGEND */
+  .legend {
+    display: flex;
+    gap: 20px;
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+    background: #eaecf0;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: #5a6278;
+  }
+
+  .legend-line {
+    width: 16px;
+    height: 2px;
+    border-radius: 1px;
+  }
+
+  /* INSTRUCTIONS */
+  .instructions {
+    font-size: 11px;
+    color: #5a6278;
+    font-family: 'IBM Plex Mono', monospace;
+    padding: 10px 20px;
+    border-top: 1px solid var(--border);
+    background: #eaecf0;
+  }
+
+  /* SELECTED SPAN INFO */
+  .span-info {
+    padding: 14px 20px;
+    border-top: 1px solid var(--border);
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+  }
+
+  .span-info-empty {
+    font-size: 11px;
+    color: #8892a4;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .span-info-content { display: none; width: 100%; }
+  .span-info-content.visible { display: block; }
+
+  .span-info-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .span-info-quote {
+    font-size: 12px;
+    color: #2a3040;
+    line-height: 1.5;
+    font-style: italic;
+    margin-bottom: 8px;
+  }
+
+  .span-info-stats {
+    display: flex;
+    gap: 16px;
+  }
+
+  .stat {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+  }
+
+  .stat-k { color: #5a6278; }
+  .stat-v { font-weight: 600; }
+  .stat-v.hawk { color: var(--hawk); }
+  .stat-v.dove { color: var(--dove); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>FOMC Statement</h1>
+    <h2>Span-Level Attribution Analysis</h2>
+  </div>
+</div>
+
+<div class="layout">
+  <!-- Main text panel -->
+  <div class="panel">
+    <div class="panel-header">
+      <span class="dot" style="background:#aab0be"></span>
+      <span class="panel-title">Full Statement Text · Annotated</span>
+    </div>
+    <div class="text-content" id="annotated-text"></div>
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-line" style="background:var(--hawk)"></div>
+        Hawkish span
+      </div>
+      <div class="legend-item">
+        <div class="legend-line" style="background:var(--dove)"></div>
+        Dovish span
+      </div>
+    </div>
+    <div class="instructions">Hover or click any highlighted span for details. Click bar chart rows to locate in text. &Delta; score = span’s contribution to meeting stance (negative = more dovish).</div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <!-- Score breakdown chart -->
+    <div class="panel chart-panel">
+      <div class="panel-header">
+        <span class="dot" style="background:var(--accent)"></span>
+        <span class="panel-title">Attribution Ranking</span>
+      </div>
+
+      <div class="chart-section" id="hawk-chart"></div>
+      <div class="chart-section" id="dove-chart"></div>
+
+      <!-- Selected span info -->
+      <div class="span-info">
+        <div class="span-info-empty" id="info-empty">← select a span</div>
+        <div class="span-info-content" id="info-content">
+          <div class="span-info-label" id="info-label"></div>
+          <div class="span-info-quote" id="info-quote"></div>
+          <div class="span-info-stats">
+            <div class="stat"><span class="stat-k">Δ score </span><span class="stat-v" id="info-delta"></span></div>
+            <div class="stat"><span class="stat-k">score w/o </span><span class="stat-v" id="info-score-wo"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip">
+  <div class="tooltip-span" id="tt-span"></div>
+  <div class="tooltip-row">
+    <span class="tooltip-key">Δ score</span>
+    <span class="tooltip-val" id="tt-delta"></span>
+  </div>
+  <div class="tooltip-row">
+    <span class="tooltip-key">score w/o span</span>
+    <span class="tooltip-val" id="tt-score-wo"></span>
+  </div>
+  <div class="tooltip-row">
+    <span class="tooltip-key">word range</span>
+    <span class="tooltip-val" id="tt-range" style="color:#5a6278"></span>
+  </div>
+</div>
+
+<script>
+const TEXT = `The Federal Reserve is committed to using its full range of tools to support the U.S. economy in this challenging time, thereby promoting its maximum employment and price stability goals.
+
+The COVID-19 pandemic is causing tremendous human and economic hardship across the United States and around the world. The pace of the recovery in economic activity and employment has moderated in recent months, with weakness concentrated in the sectors most adversely affected by the pandemic. Weaker demand and earlier declines in oil prices have been holding down consumer price inflation. Overall financial conditions remain accommodative, in part reflecting policy measures to support the economy and the flow of credit to U.S. households and businesses.
+
+The path of the economy will depend significantly on the course of the virus, including progress on vaccinations. The ongoing public health crisis continues to weigh on economic activity, employment, and inflation, and poses considerable risks to the economic outlook.
+
+The Committee seeks to achieve maximum employment and inflation at the rate of 2 percent over the longer run. With inflation running persistently below this longer-run goal, the Committee will aim to achieve inflation moderately above 2 percent for some time so that inflation averages 2 percent over time and longer-term inflation expectations remain well anchored at 2 percent. The Committee expects to maintain an accommodative stance of monetary policy until these outcomes are achieved. The Committee decided to keep the target range for the federal funds rate at 0 to 1/4 percent and expects it will be appropriate to maintain this target range until labor market conditions have reached levels consistent with the Committee's assessments of maximum employment and inflation has risen to 2 percent and is on track to moderately exceed 2 percent for some time. In addition, the Federal Reserve will continue to increase its holdings of Treasury securities by at least $80 billion per month and of agency mortgage-backed securities by at least $40 billion per month until substantial further progress has been made toward the Committee's maximum employment and price stability goals. These asset purchases help foster smooth market functioning and accommodative financial conditions, thereby supporting the flow of credit to households and businesses.
+
+In assessing the appropriate stance of monetary policy, the Committee will continue to monitor the implications of incoming information for the economic outlook. The Committee would be prepared to adjust the stance of monetary policy as appropriate if risks emerge that could impede the attainment of the Committee's goals. The Committee's assessments will take into account a wide range of information, including readings on public health, labor market conditions, inflation pressures and inflation expectations, and financial and international developments.`;
+
+// Find character range for quote in text; if not found, try with newlines normalized to space
+function findSpanPositions(text, quote) {
+  let idx = text.indexOf(quote);
+  if (idx >= 0) return [idx, idx + quote.length];
+  const normalized = text.replace(/\n+/g, ' ');
+  idx = normalized.indexOf(quote);
+  if (idx < 0) return null;
+  // Map normalized [idx, idx+len] back to text indices
+  let n = 0, start = -1, end = -1;
+  for (let t = 0; t < text.length; t++) {
+    if (text[t] !== '\n') {
+      if (n === idx) start = t;
+      if (n === idx + quote.length) { end = t; break; }
+      n++;
+    }
+  }
+  if (end < 0) end = text.length;
+  return start >= 0 ? [start, end] : null;
+}
+
+// Data from span_attribution.txt (delta_score, score_wo; word-level; 0 hawkish, 10 dovish)
+const HAWK_SPANS_RAW = [];
+
+// Dovish spans: complete phrases where possible for clearer annotation
+const DOVE_SPANS_RAW = [
+  { rank: 1, delta: -0.1523, score_wo: 0.6837, quote: 'is causing tremendous human and economic hardship across the United States and around the world.' },
+  { rank: 2, delta: -0.1468, score_wo: 0.6782, quote: 'path of the economy will depend significantly on the course of the virus, including progress on vaccinations.' },
+  { rank: 3, delta: -0.1446, score_wo: 0.6760, quote: 'it will be appropriate to maintain this target range until labor market conditions have reached levels consistent with the Committee\'s assessments of maximum employment and inflation has risen to 2 percent and is on track to moderately exceed 2 percent for some time.' },
+  { rank: 4, delta: -0.1430, score_wo: 0.6744, quote: 'demand and earlier declines in oil prices have been holding down consumer price inflation.' },
+  { rank: 5, delta: -0.1370, score_wo: 0.6684, quote: 'some time so that inflation averages 2 percent over time and longer-term inflation expectations remain well anchored at 2 percent.' },
+  { rank: 6, delta: -0.1367, score_wo: 0.6681, quote: 'decided to keep the target range for the federal funds rate at 0 to 1/4 percent' },
+  { rank: 7, delta: -0.1340, score_wo: 0.6654, quote: 'the Committee will aim to achieve inflation moderately above 2 percent for some time' },
+  { rank: 8, delta: -0.1319, score_wo: 0.6633, quote: 'to maintain an accommodative stance of monetary policy until these outcomes are achieved.' },
+  { rank: 9, delta: -0.1283, score_wo: 0.6597, quote: 'with weakness concentrated in the sectors most adversely affected by the pandemic.' },
+];
+
+// Resolve character positions
+const HAWK_SPANS = HAWK_SPANS_RAW.map((s, i) => {
+  const pos = findSpanPositions(TEXT, s.quote);
+  return { ...s, id: `hawk-${i}`, type: 'hawk', start: pos?.[0], end: pos?.[1] };
+}).filter(s => s.start !== undefined);
+
+const DOVE_SPANS = DOVE_SPANS_RAW.map((s, i) => {
+  const pos = findSpanPositions(TEXT, s.quote);
+  return { ...s, id: `dove-${i}`, type: 'dove', start: pos?.[0], end: pos?.[1] };
+}).filter(s => s.start !== undefined);
+
+const ALL_SPANS = [...HAWK_SPANS, ...DOVE_SPANS].sort((a, b) => a.start - b.start);
+
+// Build annotated text
+function buildAnnotatedText() {
+  const container = document.getElementById('annotated-text');
+  let html = '';
+  let cursor = 0;
+
+  for (const span of ALL_SPANS) {
+    if (span.start < cursor) continue;
+    // Plain text before this span
+    const before = TEXT.slice(cursor, span.start);
+    html += escapeHtml(before).replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>');
+    // Span
+    const cls = span.type === 'hawk' ? 'span-hawk' : 'span-dove';
+    html += `<span class="${cls}" data-id="${span.id}" data-type="${span.type}">${escapeHtml(span.quote)}</span>`;
+    cursor = span.end;
+  }
+  // Remaining text
+  html += escapeHtml(TEXT.slice(cursor)).replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>');
+
+  container.innerHTML = `<p>${html}</p>`;
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Build bar charts
+function buildChart(spans, containerId, type) {
+  const container = document.getElementById(containerId);
+  const maxDelta = Math.max(...spans.map(s => Math.abs(s.delta)));
+  const color = type === 'hawk' ? 'hawk' : 'dove';
+  const label = type === 'hawk' ? 'Hawkish Spans' : 'Dovish Spans';
+
+  let html = `<div class="chart-section-title ${color}">${label}</div>`;
+  for (const span of spans) {
+    const pct = (Math.abs(span.delta) / maxDelta * 100).toFixed(1);
+    const shortText = span.quote.length > 28 ? span.quote.slice(0, 28) + '…' : span.quote;
+    const deltaStr = span.delta > 0 ? `+${span.delta.toFixed(4)}` : span.delta.toFixed(4);
+    html += `
+      <div class="bar-row" data-id="${span.id}" data-type="${type}">
+        <span class="bar-rank">${span.rank}</span>
+        <div class="bar-track">
+          <div class="bar-fill ${color}" style="width:${pct}%">
+            <span class="bar-text">${shortText}</span>
+          </div>
+        </div>
+        <span class="bar-delta ${color}">${deltaStr}</span>
+      </div>`;
+  }
+  container.innerHTML = html;
+}
+
+// Tooltip
+const tooltip = document.getElementById('tooltip');
+let activeId = null;
+
+function showTooltip(span, e) {
+  document.getElementById('tt-span').textContent = `"${span.quote}"`;
+  const deltaStr = span.delta > 0 ? `+${span.delta.toFixed(4)}` : span.delta.toFixed(4);
+  const el = document.getElementById('tt-delta');
+  el.textContent = deltaStr;
+  el.className = `tooltip-val ${span.type}`;
+  document.getElementById('tt-score-wo').textContent = span.score_wo.toFixed(4);
+  document.getElementById('tt-range').textContent = `${span.start}–${span.end}`;
+  positionTooltip(e);
+  tooltip.classList.add('visible');
+}
+
+function positionTooltip(e) {
+  const x = e.clientX + 14;
+  const y = e.clientY - 10;
+  tooltip.style.left = Math.min(x, window.innerWidth - 300) + 'px';
+  tooltip.style.top = Math.max(10, y) + 'px';
+}
+
+function hideTooltip() {
+  tooltip.classList.remove('visible');
+}
+
+function getSpanById(id) {
+  return [...HAWK_SPANS, ...DOVE_SPANS].find(s => s.id === id);
+}
+
+function setActive(id) {
+  // Deactivate all
+  document.querySelectorAll('.span-hawk, .span-dove, .bar-row').forEach(el => el.classList.remove('active'));
+  if (!id || id === activeId) {
+    activeId = null;
+    document.getElementById('info-empty').style.display = 'block';
+    document.getElementById('info-content').classList.remove('visible');
+    return;
+  }
+  activeId = id;
+  // Activate matching elements
+  document.querySelectorAll(`[data-id="${id}"]`).forEach(el => el.classList.add('active'));
+
+  // Update info panel
+  const span = getSpanById(id);
+  if (span) {
+    document.getElementById('info-empty').style.display = 'none';
+    document.getElementById('info-content').classList.add('visible');
+    const label = document.getElementById('info-label');
+    label.textContent = span.type === 'hawk' ? 'Hawkish Span' : 'Dovish Span';
+    label.style.color = span.type === 'hawk' ? 'var(--hawk)' : 'var(--dove)';
+    document.getElementById('info-quote').textContent = `"${span.quote}"`;
+    const deltaEl = document.getElementById('info-delta');
+    const deltaStr = span.delta > 0 ? `+${span.delta.toFixed(4)}` : span.delta.toFixed(4);
+    deltaEl.textContent = deltaStr;
+    deltaEl.className = `stat-v ${span.type}`;
+    document.getElementById('info-score-wo').textContent = span.score_wo.toFixed(4);
+  }
+
+  // Scroll into view
+  const textEl = document.querySelector(`[data-id="${id}"].span-hawk, [data-id="${id}"].span-dove`);
+  if (textEl) textEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// Event listeners
+document.addEventListener('mousemove', (e) => {
+  const target = e.target.closest('[data-id]');
+  if (target) {
+    const span = getSpanById(target.dataset.id);
+    if (span) { showTooltip(span, e); return; }
+  }
+  hideTooltip();
+});
+
+document.addEventListener('click', (e) => {
+  const target = e.target.closest('[data-id]');
+  if (target) setActive(target.dataset.id === activeId ? null : target.dataset.id);
+});
+
+// Init
+buildAnnotatedText();
+buildChart(HAWK_SPANS, 'hawk-chart', 'hawk');
+buildChart(DOVE_SPANS, 'dove-chart', 'dove');
+</script>
+</body>
+</html>
