@@ -1,5 +1,5 @@
 # Git LFS for large assets (images, media, large data)
-*.png filter=lfs diff=lfs merge=lfs -text
+# *.png excluded: logo.png must be in repo for GitHub Pages to serve it
 *.jpg filter=lfs diff=lfs merge=lfs -text
 *.jpeg filter=lfs diff=lfs merge=lfs -text
 *.gif filter=lfs diff=lfs merge=lfs -text
